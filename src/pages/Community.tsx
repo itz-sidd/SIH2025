@@ -2,47 +2,67 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, MessageCircle, Heart, Shield, Clock } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { LoginForm } from "@/components/auth/LoginForm";
 
-const communityRooms = [
-  {
-    id: 1,
-    name: "General Support",
-    description: "A safe space for general mental health discussions",
-    members: 234,
-    active: 12,
-    lastMessage: "2 minutes ago",
-    category: "support"
-  },
-  {
-    id: 2,
-    name: "Anxiety & Stress",
-    description: "Share coping strategies and support for anxiety",
-    members: 189,
-    active: 8,
-    lastMessage: "5 minutes ago",
-    category: "anxiety"
-  },
-  {
-    id: 3,
-    name: "Study Pressure",
-    description: "Academic stress and study-life balance",
-    members: 156,
-    active: 15,
-    lastMessage: "1 minute ago",
-    category: "academic"
-  },
-  {
-    id: 4,
-    name: "Daily Motivation",
-    description: "Share positive thoughts and daily inspiration",
-    members: 298,
-    active: 20,
-    lastMessage: "just now",
-    category: "motivation"
-  }
-];
+interface Room {
+  id: string;
+  name: string;
+  description: string;
+  members: number;
+  active: number;
+  lastMessage: string;
+  category: string;
+}
 
 export default function Community() {
+  const { user, isLoading } = useAuth();
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      loadRooms();
+    }
+  }, [user]);
+
+  const loadRooms = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/rooms', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      if (response.ok) {
+        const roomsData = await response.json();
+        setRooms(roomsData);
+      }
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      // Fallback to static data if backend is not available
+      setRooms([
+        { id: '1', name: "General Support", description: "A safe space for general mental health discussions", members: 234, active: 12, lastMessage: "2 minutes ago", category: "support" },
+        { id: '2', name: "Anxiety & Stress", description: "Share coping strategies and support for anxiety", members: 189, active: 8, lastMessage: "5 minutes ago", category: "anxiety" },
+        { id: '3', name: "Study Pressure", description: "Academic stress and study-life balance", members: 156, active: 15, lastMessage: "1 minute ago", category: "academic" },
+        { id: '4', name: "Daily Motivation", description: "Share positive thoughts and daily inspiration", members: 298, active: 20, lastMessage: "just now", category: "motivation" }
+      ]);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const handleJoinChat = (roomId: string) => {
+    navigate(`/community/room/${roomId}`);
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-96">Loading...</div>;
+  }
+
+  if (!user) {
+    return <LoginForm />;
+  }
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -87,7 +107,10 @@ export default function Community() {
 
       {/* Chat Rooms */}
       <div className="grid md:grid-cols-2 gap-6">
-        {communityRooms.map((room) => (
+        {loadingRooms ? (
+          <div className="col-span-full text-center py-8">Loading rooms...</div>
+        ) : (
+          rooms.map((room) => (
           <Card key={room.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -132,6 +155,7 @@ export default function Community() {
                 <Button 
                   className="flex-1 bg-[hsl(var(--community))] hover:bg-[hsl(var(--community)/0.9)]"
                   size="sm"
+                  onClick={() => handleJoinChat(room.id)}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Join Chat
@@ -142,7 +166,8 @@ export default function Community() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Coming Soon Features */}
